@@ -1,9 +1,13 @@
 package app
 
 import (
+	"time"
+
 	"github.com/mitchellh/mapstructure"
 	"go.temporal.io/sdk/workflow"
 )
+
+const abandonedCartTimeout time.Duration = 60 * time.Second
 
 type (
 	CartItem struct {
@@ -29,41 +33,65 @@ func CartWorkflow(ctx workflow.Context, state CartState) error {
 	}
 
 	channel := workflow.GetSignalChannel(ctx, CartMessagesSignal)
-	selector := workflow.NewSelector(ctx)
+	sentAbandonedCartEmail := false
 
-	selector.AddReceive(channel, func(c workflow.ReceiveChannel, _ bool) {
-		var signal any
-		c.Receive(ctx, &signal)
-
-		var routeSignal RouteSignal
-		err := mapstructure.Decode(signal, &routeSignal)
-		if err != nil {
-			logger.Error("Unable to decode signal.", "Error", err)
-			return
-		}
-
-		switch routeSignal.Route {
-		case RouteTypes.ADD_TO_CART:
-			var message AddToCartSignal
-			err := mapstructure.Decode(signal, &message)
-			if err != nil {
-				logger.Error("Invalid signal type %v", err)
-			}
-			state.AddToCart(message.Item)
-		case RouteTypes.REMOVE_FROM_CART:
-			var message RemoveFromCartSignal
-			err := mapstructure.Decode(signal, &message)
-			if err != nil {
-				logger.Error("Invalid signal type %v", err)
-			}
-			state.RemoveFromCart(message.Item)
-		default:
-		}
-	})
+	activities := new(Activities)
 
 	for {
-		// Can also use `Receive()` instead of a selector, but we'll be making further
-		// use of selectors in part 2 of this series
+		// Create a new Selector on each iteration of the loop means Temporal will pick the first
+		// event that occurs each time: either receiving a signal, or responding to the timer.
+		selector := workflow.NewSelector(ctx)
+		selector.AddReceive(channel, func(c workflow.ReceiveChannel, _ bool) {
+			var signal any
+			c.Receive(ctx, &signal)
+
+			var routeSignal RouteSignal
+			err := mapstructure.Decode(signal, &routeSignal)
+			if err != nil {
+				logger.Error("Unable to decode signal.", "Error", err)
+				return
+			}
+
+			switch routeSignal.Route {
+			case RouteTypes.ADD_TO_CART:
+				var message AddToCartSignal
+				err := mapstructure.Decode(signal, &message)
+				if err != nil {
+					logger.Error("Invalid signal type %v", err)
+				}
+				state.AddToCart(message.Item)
+			case RouteTypes.REMOVE_FROM_CART:
+				var message RemoveFromCartSignal
+				err := mapstructure.Decode(signal, &message)
+				if err != nil {
+					logger.Error("Invalid signal type %v", err)
+				}
+				state.RemoveFromCart(message.Item)
+			default:
+			}
+		})
+
+		if !sentAbandonedCartEmail && len(state.Items) > 0 {
+			timer := workflow.NewTimer(ctx, abandonedCartTimeout)
+			selector.AddFuture(timer, func(f workflow.Future) {
+				sentAbandonedCartEmail = true
+				ao := workflow.ActivityOptions{
+					StartToCloseTimeout: 10 * time.Second,
+				}
+
+				ctx = workflow.WithActivityOptions(ctx, ao)
+				err = workflow.ExecuteActivity(
+					ctx,
+					activities.SendAbandonedCartEmail,
+					state.Email,
+				).Get(ctx, nil)
+				if err != nil {
+					logger.Error("Error sending email %v", err)
+					return
+				}
+			})
+		}
+
 		selector.Select(ctx)
 	}
 }
