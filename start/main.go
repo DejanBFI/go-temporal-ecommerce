@@ -39,7 +39,7 @@ func main() {
 	}
 
 	for i := 1; i <= 100; i++ {
-		productID := rand.Int()*10000 + 1
+		productID := rand.Int()%10000 + 1
 
 		addToCartSignal := app.AddToCartSignal{
 			Route: app.RouteTypes.ADD_TO_CART,
