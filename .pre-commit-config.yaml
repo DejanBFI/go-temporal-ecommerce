@@ -1,0 +1,21 @@
+minimum_pre_commit_version: '2'
+fail_fast: true
+repos:
+  - repo: local
+    hooks:
+      - id: check-golang-version
+        name: Check Go Language version
+        language: system
+        entry: go version
+        pass_filenames: false
+        verbose: true
+      - id: go-mod-vendor
+        name: Install all dependencies
+        language: system
+        entry: go mod vendor
+        pass_filenames: false
+      - id: make-test
+        name: Run all tests
+        language: system
+        entry: make test
+        pass_filenames: false
