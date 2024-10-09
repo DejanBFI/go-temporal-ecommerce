@@ -7,7 +7,7 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-const abandonedCartTimeout time.Duration = 45 * time.Second
+const abandonedCartTimeout time.Duration = 35 * time.Second
 
 type (
 	CartItem struct {
@@ -16,8 +16,9 @@ type (
 	}
 
 	CartState struct {
-		Items []CartItem
-		Email string
+		Items                  []CartItem
+		Email                  string
+		SentAbandonedCartEmail bool
 	}
 )
 
@@ -33,10 +34,8 @@ func CartWorkflow(ctx workflow.Context, state CartState) error {
 	}
 
 	channel := workflow.GetSignalChannel(ctx, CartMessagesSignal)
-	sentAbandonedCartEmail := false
 
 	activities := new(Activities)
-
 	for {
 		// Create a new Selector on each iteration of the loop means Temporal will pick the first
 		// event that occurs each time: either receiving a signal, or responding to the timer.
@@ -71,10 +70,10 @@ func CartWorkflow(ctx workflow.Context, state CartState) error {
 			}
 		})
 
-		if !sentAbandonedCartEmail && len(state.Items) > 0 {
+		if !state.SentAbandonedCartEmail && len(state.Items) > 0 {
 			timer := workflow.NewTimer(ctx, abandonedCartTimeout)
 			selector.AddFuture(timer, func(f workflow.Future) {
-				sentAbandonedCartEmail = true
+				state.SentAbandonedCartEmail = true
 				ao := workflow.ActivityOptions{
 					StartToCloseTimeout: 10 * time.Second,
 				}

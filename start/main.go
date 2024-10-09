@@ -29,8 +29,9 @@ func main() {
 	}
 
 	state := app.CartState{
-		Items: make([]app.CartItem, 0),
-		Email: "notif@iamdejan.omg.lol",
+		Items:                  make([]app.CartItem, 0),
+		Email:                  "notif@iamdejan.omg.lol",
+		SentAbandonedCartEmail: false,
 	}
 
 	we, err := c.ExecuteWorkflow(ctx, options, app.CartWorkflow, state)
