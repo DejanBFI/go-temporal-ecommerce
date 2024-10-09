@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"time"
 
 	"go-temporal-ecommerce/app"
@@ -29,6 +30,7 @@ func main() {
 
 	state := app.CartState{
 		Items: make([]app.CartItem, 0),
+		Email: "notif@iamdejan.omg.lol",
 	}
 
 	we, err := c.ExecuteWorkflow(ctx, options, app.CartWorkflow, state)
@@ -36,16 +38,20 @@ func main() {
 		log.Fatalln("Unable to execute workflow", err)
 	}
 
-	addToCartSignal := app.AddToCartSignal{
-		Route: app.RouteTypes.ADD_TO_CART,
-		Item: app.CartItem{
-			ProductID: 1,
-			Quantity:  1,
-		},
-	}
-	err = c.SignalWorkflow(ctx, workflowID, we.GetRunID(), app.CartMessagesSignal, addToCartSignal)
-	if err != nil {
-		log.Fatalln("Unable to signal workflow", err)
+	for i := 1; i <= 10; i++ {
+		productID := rand.Int()%10000 + 1
+
+		addToCartSignal := app.AddToCartSignal{
+			Route: app.RouteTypes.ADD_TO_CART,
+			Item: app.CartItem{
+				ProductID: productID,
+				Quantity:  1,
+			},
+		}
+		err = c.SignalWorkflow(ctx, workflowID, we.GetRunID(), app.CartMessagesSignal, addToCartSignal)
+		if err != nil {
+			log.Fatalln("Unable to signal workflow", err)
+		}
 	}
 
 	resp, err := c.QueryWorkflow(ctx, workflowID, we.GetRunID(), app.QueryTypes.GET_CART)
