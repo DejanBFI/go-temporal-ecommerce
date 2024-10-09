@@ -30,7 +30,7 @@ func main() {
 
 	state := app.CartState{
 		Items: make([]app.CartItem, 0),
-		Email: "iamme@omg.lol",
+		Email: "notif@iamdejan.omg.lol",
 	}
 
 	we, err := c.ExecuteWorkflow(ctx, options, app.CartWorkflow, state)
@@ -38,7 +38,7 @@ func main() {
 		log.Fatalln("Unable to execute workflow", err)
 	}
 
-	for i := 1; i <= 100; i++ {
+	for i := 1; i <= 10; i++ {
 		productID := rand.Int()%10000 + 1
 
 		addToCartSignal := app.AddToCartSignal{
@@ -53,8 +53,6 @@ func main() {
 			log.Fatalln("Unable to signal workflow", err)
 		}
 	}
-
-	time.Sleep(65 * time.Second)
 
 	resp, err := c.QueryWorkflow(ctx, workflowID, we.GetRunID(), app.QueryTypes.GET_CART)
 	if err != nil {

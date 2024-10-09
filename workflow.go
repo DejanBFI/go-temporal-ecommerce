@@ -7,7 +7,7 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-const abandonedCartTimeout time.Duration = 60 * time.Second
+const abandonedCartTimeout time.Duration = 45 * time.Second
 
 type (
 	CartItem struct {

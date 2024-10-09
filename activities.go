@@ -10,7 +10,7 @@ func (a *Activities) CreatePayment() error {
 	return nil
 }
 
-func (a *Activities) SendAbandonedCartEmail() error {
-	log.Println("Send abandoned cart email...")
+func (a *Activities) SendAbandonedCartEmail(email string) error {
+	log.Println("Send abandoned cart email to " + email)
 	return nil
 }
